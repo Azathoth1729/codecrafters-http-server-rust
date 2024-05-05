@@ -1,0 +1,3 @@
+### GET request to example server
+GET http://localhost:4221/index.html
+###
