@@ -7,13 +7,15 @@ use hyper::http::response::Builder;
 use hyper::StatusCode;
 
 pub mod response;
+pub mod server;
+pub mod connection;
 
 fn handle_stream(stream: TcpStream) -> Result<()> {
     let reader_stream = stream;
-    let mut writer_steam = reader_stream.try_clone()?;
+    let mut writer_stream = reader_stream.try_clone()?;
 
     let mut reader = BufReader::new(reader_stream);
-    let mut req_str = String::new();
+    let mut read_buf = String::new();
     loop {
         let mut buf = String::new();
         let size = reader.read_line(&mut buf)?;
@@ -21,13 +23,13 @@ fn handle_stream(stream: TcpStream) -> Result<()> {
         if size == 0 || buf.as_bytes() == b"\r\n" {
             break;
         }
-        req_str.push_str(&buf)
+        read_buf.push_str(&buf)
     }
-    eprintln!("req_str:\n{:?}", req_str);
+    eprintln!("req_str:\n{:?}", read_buf);
 
     let mut headers = [httparse::EMPTY_HEADER; 64];
     let mut req = httparse::Request::new(&mut headers);
-    req.parse(&req_str.as_bytes()).context("request parse failed")?;
+    req.parse(&read_buf.as_bytes()).context("request parse failed")?;
 
 
     if let Some(path) = req.path {
@@ -46,7 +48,7 @@ fn handle_stream(stream: TcpStream) -> Result<()> {
         let response_str = response.to_string();
         eprintln!("response_str:\n{response_str:?}");
         
-        writer_steam.write_all(response_str.as_bytes())?;
+        writer_stream.write_all(response_str.as_bytes())?;
     }
 
     Ok(())
@@ -55,7 +57,7 @@ fn handle_stream(stream: TcpStream) -> Result<()> {
 fn main() -> Result<()> {
     let port = 4221;
     let ip_arr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port);
-    let listener = TcpListener::bind(ip_arr).unwrap();
+    let listener = TcpListener::bind(ip_arr)?;
 
     for stream in listener.incoming() {
         let stream = stream?;
