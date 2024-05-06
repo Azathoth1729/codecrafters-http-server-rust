@@ -12,7 +12,6 @@ pub mod server;
 
 fn main() -> Result<()> {
     let tracing_subscriber = tracing_subscriber::fmt()
-        .compact()
         .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)

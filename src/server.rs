@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use bytes::Bytes;
-use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE};
+use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT};
 use hyper::http::response::Builder;
 use hyper::{Method, StatusCode};
 use regex::Regex;
@@ -18,9 +18,10 @@ impl Handler {
         Self { conn }
     }
     pub fn run(&mut self) -> anyhow::Result<()> {
-        let req = self.conn.read_req()?;
+        let hyper_req = self.conn.read_req()?;
+        info!("hyper request:\n{:?}", hyper_req);
 
-        let response = Self::handle_request(&req)?;
+        let response = Self::handle_request(&hyper_req)?;
         info!("send response:\n{:?}", response);
 
         self.conn.write_response(response)?;
@@ -41,6 +42,20 @@ impl Handler {
                             .header(CONTENT_TYPE, "text/plain")
                             .header(CONTENT_LENGTH, body_bytes.len())
                             .body(Some(body_bytes))?,
+                    ))
+                }
+                "/user-agent" => {
+                    let body = req
+                        .headers()
+                        .get(USER_AGENT)
+                        .context("req don't have USER_AGENT header key")?;
+
+                    Ok(Response::from(
+                        Builder::new()
+                            .status(StatusCode::OK)
+                            .header(CONTENT_TYPE, "text/plain")
+                            .header(CONTENT_LENGTH, body.as_bytes().len())
+                            .body(Some(Bytes::from(body.as_bytes().to_owned())))?,
                     ))
                 }
                 "/" => Ok(Response::from(

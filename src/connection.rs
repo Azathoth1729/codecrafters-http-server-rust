@@ -32,14 +32,14 @@ impl Connection {
             self.read_buf.push_str(&buf)
         }
         info!("----------read from stream----------");
-        info!("parsed http_request: {:?}", &self.read_buf);
+        info!("parsed raw data before body: {:?}", &self.read_buf);
         let mut headers = [httparse::EMPTY_HEADER; Self::MAX_HEADER_NUM];
         let mut httparse_req = httparse::Request::new(&mut headers);
         httparse_req
             .parse(self.read_buf.as_bytes())
             .context("request parse failed")?;
         info!(
-            "more parsed request:\n{}",
+            "httparse request:\n{}",
             debug_httparse_request(&httparse_req)
         );
 
