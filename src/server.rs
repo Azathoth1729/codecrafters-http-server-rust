@@ -4,6 +4,7 @@ use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT};
 use hyper::http::response::Builder;
 use hyper::{Method, StatusCode};
 use regex::Regex;
+use tokio::net::TcpStream;
 use tracing::info;
 
 use crate::connection::Connection;
@@ -14,17 +15,20 @@ pub struct Handler {
 }
 
 impl Handler {
-    pub fn new(conn: Connection) -> Self {
-        Self { conn }
+    pub fn new(tcp_stream: TcpStream) -> Self {
+        Self {
+            conn: Connection::new(tcp_stream),
+        }
     }
-    pub fn run(&mut self) -> anyhow::Result<()> {
-        let hyper_req = self.conn.read_req()?;
+
+    pub async fn run(&mut self) -> anyhow::Result<()> {
+        let hyper_req = self.conn.read_req().await?;
         info!("hyper request:\n{:?}", hyper_req);
 
         let response = Self::handle_request(&hyper_req)?;
         info!("send response:\n{:?}", response);
 
-        self.conn.write_response(response)?;
+        self.conn.write_response(response).await?;
         info!("----------write to stream----------");
 
         Ok(())

@@ -1,30 +1,31 @@
 use crate::response::{BodyData, Response};
 use anyhow::{anyhow, Context};
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpStream;
+use tokio::io::BufStream;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 use tracing::info;
 
 pub struct Connection {
-    reader_stream: BufReader<TcpStream>,
-    writer_stream: TcpStream,
+    stream: BufStream<TcpStream>,
     read_buf: String,
 }
 
 impl Connection {
     const MAX_HEADER_NUM: usize = 1 << 10;
 
-    pub fn try_new(tcp_stream: TcpStream) -> anyhow::Result<Self> {
-        Ok(Connection {
-            reader_stream: BufReader::new(tcp_stream.try_clone()?),
-            writer_stream: tcp_stream,
+    pub fn new(tcp_stream: TcpStream) -> Self {
+        Connection {
+            stream: BufStream::new(tcp_stream),
             read_buf: String::new(),
-        })
+        }
     }
 
-    pub fn read_req(&mut self) -> anyhow::Result<hyper::Request<()>> {
+    pub async fn read_req(&mut self) -> anyhow::Result<hyper::Request<()>> {
         loop {
             let mut buf = String::new();
-            let size = self.reader_stream.read_line(&mut buf)?;
+            let size = self.stream.read_line(&mut buf).await?;
 
             if size == 0 || buf.as_bytes() == b"\r\n" {
                 break;
@@ -47,10 +48,14 @@ impl Connection {
             .context("hyper_request_try_from_httparse failed")
     }
 
-    pub fn write_response(&mut self, response: Response<BodyData>) -> anyhow::Result<()> {
-        self.writer_stream
-            .write_all(&response.serialize())
-            .context("write response to stream")
+    pub async fn write_response(&mut self, response: Response<BodyData>) -> anyhow::Result<()> {
+        let bytes = &response.serialize();
+        self.stream
+            .write(bytes)
+            .await
+            .context("write response to stream")?;
+        self.stream.flush().await?;
+        Ok(())
     }
 }
 
