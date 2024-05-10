@@ -1,8 +1,7 @@
-use std::fmt::{Debug};
+use std::fmt::Debug;
 
 use bytes::Bytes;
 use format_bytes::format_bytes;
-
 
 pub type BodyData = Option<Bytes>;
 
@@ -55,18 +54,6 @@ impl Response<BodyData> {
     }
 }
 
-// impl<T> fmt::Display for Response<T> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-//         write!(
-//             f,
-//             "{:?} {} {}\r\n\r\n",
-//             self.inner.version(),
-//             self.inner.status().as_str(),
-//             self.inner.status().canonical_reason().unwrap()
-//         )
-//     }
-// }
-
 impl<T> From<hyper::Response<T>> for Response<T> {
     fn from(value: hyper::Response<T>) -> Self {
         Response { inner: value }
@@ -78,6 +65,7 @@ mod tests {
     use hyper::header::{CONTENT_LENGTH, CONTENT_TYPE};
     use hyper::http::response;
     use hyper::StatusCode;
+    use nom::AsBytes;
 
     use super::*;
 
