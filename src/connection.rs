@@ -1,11 +1,11 @@
-use crate::response::{BodyData, Response};
+use crate::common::Serializable;
 use anyhow::{anyhow, Context};
 use tokio::io::BufStream;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt},
     net::TcpStream,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 pub struct Connection {
     stream: BufStream<TcpStream>,
@@ -39,7 +39,7 @@ impl Connection {
         httparse_req
             .parse(self.read_buf.as_bytes())
             .context("request parse failed")?;
-        info!(
+        debug!(
             "httparse request:\n{}",
             debug_httparse_request(&httparse_req)
         );
@@ -48,7 +48,10 @@ impl Connection {
             .context("hyper_request_try_from_httparse failed")
     }
 
-    pub async fn write_response(&mut self, response: Response<BodyData>) -> anyhow::Result<()> {
+    pub async fn write_response<S>(&mut self, response: S) -> anyhow::Result<()>
+    where
+        S: Serializable,
+    {
         let bytes = &response.serialize();
         self.stream
             .write(bytes)
