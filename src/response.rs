@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use crate::common::Serializable;
 use bytes::Bytes;
 use format_bytes::format_bytes;
 
@@ -34,14 +35,14 @@ impl<T> Response<T> {
     }
 }
 
-impl Response<()> {
-    pub fn serialize(&self) -> Vec<u8> {
+impl Serializable for Response<()> {
+    fn serialize(&self) -> Vec<u8> {
         self.serialize_without_body()
     }
 }
 
-impl Response<BodyData> {
-    pub fn serialize(&self) -> Vec<u8> {
+impl Serializable for Response<BodyData> {
+    fn serialize(&self) -> Vec<u8> {
         let mut serialize_str_without_body = self.serialize_without_body();
         let body = self.inner.body();
         let body_str = if let Some(bytes) = body {
